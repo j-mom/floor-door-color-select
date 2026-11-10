@@ -898,13 +898,15 @@ function openRecords() {
   showList();
   $("recordsDialog").showModal();
 }
+// 探すときは、スペースの有無と全角・半角の違いを気にしない形にそろえて比べる
+const searchKey = (text) => (text || "").normalize("NFKC").replace(/\s/g, "").toLowerCase();
 function showList() {
   $("recDetail").hidden = true;
   $("recList").hidden = false;
   $("recFoot").hidden = false;
-  const q = $("recSearch").value.trim();
+  const q = searchKey($("recSearch").value);
   const list = loadStore().customers
-    .filter((c) => !q || c.name.includes(q) || (c.room || "").includes(q))
+    .filter((c) => !q || searchKey(c.name).includes(q) || searchKey(c.room).includes(q))
     .sort((a, b) => lastVisit(b).localeCompare(lastVisit(a)));
   const box = $("recItems");
   box.innerHTML = "";
