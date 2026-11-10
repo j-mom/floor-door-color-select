@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>床・ドア/カラーセレクト</title>
+<style>
+  :root {
+    --bg: #f7f5f1;
+    --ink: #2b2723;
+    --sub: #6f6860;
+    --line: #ddd6cc;
+    --accent: #22509B;
+    --accent-ink: #ffffff;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  /* hidden を付けたものは、ほかの見た目の設定より優先して隠す */
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
+  }
+
+  /* ===== 画面 ===== */
+  .screen {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 16px;
+    gap: 14px;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .top .logo { height: 40px; }
+  .top h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: 0.05em; }
+  .top .property { color: var(--sub); font-size: 18px; }
+  .top .right { display: flex; align-items: center; gap: 14px; }
+  .records-btn {
+    font: inherit; font-size: 17px; font-weight: 600;
+    padding: 8px 18px; min-height: 48px; border-radius: 10px;
+    border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer;
+  }
+  /* 記録から呼び出したお客様の名前（完成イメージの下に出す） */
+  .viewer .current {
+    flex-basis: 100%; margin: 0; padding: 6px 12px; border-radius: 8px;
+    background: #eef2f9; color: #22509B; font-size: 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .viewer .current button { font: inherit; font-size: 15px; padding: 4px 12px; border-radius: 8px; border: 1px solid #22509B; background: #fff; color: #22509B; cursor: pointer; }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 1000px) {
+    .main { grid-template-columns: minmax(0, 1fr) 480px; align-items: start; }
+  }
+
+  .viewer {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* 床＋インテリアの画像の上に、同じ大きさのドアの画像（背景透明）を重ねる */
+  .stack {
+    position: relative;
+    aspect-ratio: 2165 / 1510;
+    background: var(--card);
+  }
+  .stack img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .viewer .stack {
+    width: min(100%, calc((100vh - 200px) * 2165 / 1510));
+    min-width: 320px;
+    margin: 0 auto;
+  }
+
+  .viewer .info {
+    border-top: 1px solid var(--line);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .viewer .chosen { margin: 0; font-size: 18px; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; }
+  .viewer .chosen dt { color: var(--sub); font-size: 15px; align-self: center; }
+  .viewer .chosen dd { margin: 0; font-size: 20px; font-weight: 600; }
+  .print-one {
+    font: inherit;
+    font-size: 20px;
+    font-weight: 600;
+    padding: 10px 28px;
+    min-height: 60px;
+    border-radius: 12px;
+    border: 2px solid #3b5382;
+    background: #3b5382;
+    color: #fff;
+    cursor: pointer;
+  }
+  .viewer .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+  /* メールのボタンは、印刷のボタンより控えめに（白地に青い文字） */
+  .send-mail { background: #fff; color: #3b5382; }
+
+  /* 素材の写真 */
+  .materials {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .materials .hint { margin: 0; font-size: 15px; color: var(--sub); }
+  .group h2 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .swatch {
+    font: inherit;
+    padding: 0;
+    /* 中身の量が違っても、写真と名前を上にそろえる */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    border: 3px solid transparent;
+    border-radius: 10px;
+    background: var(--card);
+    cursor: pointer;
+    text-align: left;
+    overflow: hidden;
+    opacity: 0.6;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .swatch img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border-radius: 7px 7px 0 0;
+    background: #eee;
+  }
+  /* ドアの写真は縦長なので、全体が見えるように縮めて表示する */
+  .swatch.door img { aspect-ratio: 3 / 4; object-fit: contain; background: var(--card); padding-top: 4px; }
+  /* 名前はすべて同じ文字の大きさ。長い名前は swatchName の改行で2行に分ける */
+  .swatch .name { display: block; padding: 4px 4px 0; font-size: 13px; font-weight: 600; line-height: 1.3; white-space: pre-line; overflow-wrap: anywhere; }
+  /* 名前の欄を2行分の高さにそろえて、下の品番の位置を横一列にする */
+  .swatch .name { min-height: calc(2 * 1.3em + 4px); }
+  .swatch .code { display: block; padding: 0 4px 5px; font-size: 12px; line-height: 1.3; color: var(--sub); white-space: pre; overflow: hidden; word-break: keep-all; }
+  .swatch .wrap { white-space: normal; }
+  .swatch[aria-pressed="true"] { opacity: 1; border-color: var(--accent); }
+  .swatch:hover { opacity: 1; }
+  @media (max-width: 999px) {
+    .swatches { grid-template-columns: repeat(7, 1fr); }
+  }
+
+  /* ===== 印刷前の入力画面 ===== */
+  dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 28px;
+    width: min(560px, calc(100vw - 32px));
+    color: var(--ink);
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+  dialog h2 { margin: 0 0 6px; font-size: 22px; }
+  dialog p.note { margin: 0 0 18px; color: var(--sub); font-size: 15px; }
+  dialog label { display: block; margin-bottom: 14px; font-size: 16px; }
+  dialog input {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    font: inherit;
+    font-size: 20px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  dialog .actions { display: flex; gap: 12px; margin-top: 20px; }
+  dialog .actions button {
+    flex: 1;
+    font: inherit;
+    font-size: 20px;
+    padding: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  dialog .cancel { background: #fff; border: 2px solid var(--line); color: var(--ink); }
+  dialog .go { background: var(--ink); border: 2px solid var(--ink); color: #fff; }
+  /* hidden を付けた欄は、ほかの見た目の設定より優先して隠す */
+  dialog [hidden] { display: none !important; }
+  dialog .mail-ways { display: flex; flex-direction: column; gap: 10px; }
+  dialog .mail-ways button { font: inherit; font-size: 20px; padding: 12px 14px; border-radius: 10px; cursor: pointer; text-align: left; }
+  dialog .mail-ways small { display: block; font-size: 14px; font-weight: 400; opacity: 0.8; margin-top: 2px; }
+  dialog .next { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+  /* チェックの欄（このお客様の記録を残す） */
+  dialog label.check { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: #f3f0ea; cursor: pointer; }
+  dialog label.check input { width: 26px; height: 26px; margin: 0; flex: none; }
+  dialog .warn { margin: 0 0 12px; padding: 8px 12px; border-radius: 8px; background: #fbeeee; color: #9b2222; font-size: 15px; }
+  dialog .danger { background: #9b2222; border: 2px solid #9b2222; color: #fff; }
+  dialog .linkish { font: inherit; font-size: 15px; background: none; border: none; color: var(--sub); text-decoration: underline; cursor: pointer; padding: 0; }
+  dialog .forgot { margin: 14px 0 0; text-align: center; }
+
+  /* ===== お客様の記録 ===== */
+  dialog.wide { width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 32px); }
+  .rec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .rec-head h2 { margin: 0; }
+  .rec-head button, .rec-foot button, .rec-detail .small {
+    font: inherit; font-size: 16px; padding: 8px 16px; border-radius: 10px; cursor: pointer;
+    border: 2px solid var(--line); background: #fff; color: var(--ink);
+  }
+  .rec-items { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .rec-item {
+    font: inherit; text-align: left; padding: 12px 14px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .rec-item b { font-size: 20px; }
+  .rec-item span { color: var(--sub); font-size: 15px; }
+  .rec-empty { color: var(--sub); font-size: 16px; margin: 16px 0; }
+  .rec-detail h3 { margin: 12px 0 6px; font-size: 22px; }
+  .rec-detail h4 { margin: 18px 0 8px; font-size: 17px; }
+  .rec-detail dl { margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 2px; font-size: 16px; }
+  .rec-detail dt { color: var(--sub); }
+  .rec-detail dd { margin: 0; word-break: break-all; }
+  .rec-detail textarea { display: block; width: 100%; min-height: 70px; font: inherit; font-size: 17px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; }
+  .visit { display: grid; grid-template-columns: 64px 64px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .visit img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #eee; }
+  .visit img.door { object-fit: contain; background: #fff; }
+  .visit .what { font-size: 15px; line-height: 1.5; }
+  .visit .what b { display: block; font-size: 16px; }
+  .visit button { font: inherit; font-size: 16px; padding: 10px 14px; border-radius: 10px; cursor: pointer; border: 2px solid #3b5382; background: #3b5382; color: #fff; }
+  .rec-delete { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .rec-delete .small { color: #9b2222; border-color: #e6c4c4; }
+  .rec-foot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+  @media (max-width: 640px) {
+    .visit { grid-template-columns: 52px 52px 1fr; }
+    .visit img { width: 52px; height: 52px; }
+    .visit button { grid-column: 1 / -1; }
+  }
+  dialog .copied { margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; background: #eef2f9; color: #22509B; font-size: 15px; }
+  dialog ol.steps { margin: 0 0 18px; padding-left: 1.4em; font-size: 16px; line-height: 1.6; }
+  dialog ol.steps b { color: #3b5382; }
+
+  /* ===== 印刷用の紙面（画面では隠す） ===== */
+  .sheet { display: none; }
+
+  /* 紙の余白を0にすると、ブラウザが上下に付ける日付やファイル名が印刷されなくなる。
+     そのかわり、余白は .sheet の内側（padding）でとる */
+  @page { size: A4 portrait; margin: 0; }
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    .screen, dialog { display: none !important; }
+    .sheet {
+      display: flex;
+      flex-direction: column;
+      gap: 5mm;
+      width: 100%;
+      height: 294mm;
+      padding: 12mm;
+      color: #000;
+    }
+    .sheet-head { display: flex; justify-content: space-between; align-items: flex-start; }
+    .sheet-head .logo { height: 12mm; }
+    .sheet-head .property { font-size: 12pt; }
+    .sheet-head .date { font-size: 12pt; text-align: right; }
+    .sheet h1 {
+      margin: 0;
+      font-size: 22pt;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.08em;
+      padding-bottom: 3mm;
+      border-bottom: 0.6mm solid #000;
+    }
+    .sheet h1 .name { display: inline-block; min-width: 60mm; border-bottom: 0.3mm solid #000; }
+    .sheet .room { text-align: right; font-size: 14pt; }
+    .sheet .room .value { display: inline-block; min-width: 35mm; border-bottom: 0.3mm solid #000; text-align: center; }
+    .sheet .stack { height: 125mm; margin: 0 auto; }
+    .sheet table { width: 100%; border-collapse: collapse; font-size: 13pt; }
+    .sheet th, .sheet td { border: 0.3mm solid #000; padding: 2mm 4mm; text-align: left; vertical-align: middle; }
+    .sheet th { width: 40mm; font-weight: 400; background: #f0f0f0; white-space: nowrap; }
+    .sheet td.photo { width: 32mm; padding: 1.5mm; }
+    .sheet td.photo img { display: block; width: 100%; height: 22mm; object-fit: contain; }
+    .sheet .staff { margin-top: auto; font-size: 13pt; }
+    .sheet .staff .value { display: inline-block; min-width: 60mm; border-bottom: 0.3mm solid #000; }
+    .sheet .caution { font-size: 10pt; }
+    .sheet .caution p { margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<script>
+/* =========================================================
+   ここを書き換えると、物件名・素材名・画像を変更できます
+   ・logo：会社ロゴの画像ファイル（例："images/logo.png"）。空なら表示しません
+   ・floors：床。room が床＋インテリアの画像、photo が床だけの写真
+   ・doors：ドア。image が重ねるドアの画像（背景透明のPNG）、photo がドアだけの写真
+     ドアの画像は、床＋インテリアの画像と同じ大きさ（2165×1510）にしてください
+   ・name は写真の下の1行目、code は2行目に出ます
+   ・swatchName：写真の下で名前を2行に分けたいときだけ書きます（\n のところで改行）
+   ・mail：「メールで送る」で開くメールの件名と文章
+   ========================================================= */
+const SETTINGS = {
+  companyLogo: "",
+  propertyName: "（仮称）NAHAレジデンス",
+  cautions: [
+    "※画像はイメージです。実際の色味・質感とは異なる場合がございます。",
+    "※本紙は最終決定ではありません。"
+  ],
+  // メールで送るときの文章（お名前・床・ドア・担当者・連絡先は自動で入ります）
+  mail: {
+    subject: "（仮称）NAHAレジデンス　床・ドアの組み合わせのご案内",
+    opening: [
+      "本日は（仮称）NAHAレジデンスにお越しいただき、誠にありがとうございました。",
+      "ご覧いただいた床とドアの組み合わせをお送りいたします。"
+    ],
+    closing: [
+      "完成イメージは、添付の PDF でご覧いただけます。",
+      "ほかの組み合わせもご覧になりたいときは、お気軽にお申し付けください。"
+    ],
+    cautions: [
+      "※画像はイメージです。実際の色味・質感とは異なる場合がございます。",
+      "※本メールの内容は最終決定ではありません。"
+    ]
+  },
+  floors: [
+    { name: "ダークチェリー", swatchName: "ダーク\nチェリー", code: "FL-01", room: "images/rooms/room_01.jpg", photo: "images/materials/floor_01.jpg" },
+    { name: "ライトヘリンボーン", swatchName: "ライト\nヘリンボーン", code: "FL-02", room: "images/rooms/room_02.jpg", photo: "images/materials/floor_02.jpg" },
+    { name: "ウォールナット", swatchName: "ウォール\nナット", code: "FL-03", room: "images/rooms/room_03.jpg", photo: "images/materials/floor_03.jpg" },
+    { name: "ナチュラルオーク", swatchName: "ナチュラル\nオーク", code: "FL-04", room: "images/rooms/room_04.jpg", photo: "images/materials/floor_04.jpg" },
+    { name: "ストーングレー", swatchName: "ストーン\nグレー", code: "FL-05", room: "images/rooms/room_05.jpg", photo: "images/materials/floor_05.jpg" },
+    { name: "グレーウッド", swatchName: "グレー\nウッド", code: "FL-06", room: "images/rooms/room_06.jpg", photo: "images/materials/floor_06.jpg" },
+    { name: "セージグリーン", swatchName: "セージ\nグリーン", code: "FL-07", room: "images/rooms/room_07.jpg", photo: "images/materials/floor_07.jpg" }
+  ],
+  doors: [
+    { name: "ナチュラル", code: "DR-01・フラット", image: "images/doors/door_01.png", photo: "images/materials/door_01.jpg" },
+    { name: "メープル", code: "DR-02・ガラス入り", image: "images/doors/door_02.png", photo: "images/materials/door_02.jpg" },
+    { name: "グレージュ", code: "DR-03・フラット", image: "images/doors/door_03.png", photo: "images/materials/door_03.jpg" },
+    { name: "グレーブラウン", swatchName: "グレー\nブラウン", code: "DR-04・フラット", image: "images/doors/door_04.png", photo: "images/materials/door_04.jpg" },
+    { name: "ホワイト", code: "DR-05・框デザイン", image: "images/doors/door_05.png", photo: "images/materials/door_05.jpg" },
+    { name: "グレージュ", code: "DR-06・ガラス入り", image: "images/doors/door_06.png", photo: "images/materials/door_06.jpg" },
+    { name: "グレーブラウン", swatchName: "グレー\nブラウン", code: "DR-07・框デザイン", image: "images/doors/door_07.png", photo: "images/materials/door_07.jpg" }
+  ]
+};
+</script>
+
+<div class="screen">
+  <header class="top">
+    <div>
+      <h1>床・ドア/カラーセレクト</h1>
+      <div class="property" id="propertyName"></div>
+    </div>
+    <div class="right">
+      <button class="records-btn" id="recordsOpen">お客様の記録</button>
+      <img class="logo" id="screenLogo" alt="" hidden>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="viewer">
+      <div class="stack" id="stack"></div>
+      <div class="info">
+        <dl class="chosen">
+          <dt>床</dt><dd id="floorName"></dd>
+          <dt>ドア</dt><dd id="doorName"></dd>
+        </dl>
+        <p class="current" id="currentCustomer" hidden><span id="currentName"></span><button id="currentClear">解除</button></p>
+        <div class="buttons">
+          <button class="print-one" id="printOne">この組み合わせを印刷</button>
+          <button class="print-one send-mail" id="mailOne">メールで送る（PDF）</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="materials" id="materials">
+      <p class="hint">写真を押すと、床やドアが切り替わります</p>
+    </section>
+  </div>
+</div>
+
+<dialog id="printDialog">
+  <h2 id="dialogTitle">この組み合わせを印刷します</h2>
+  <p class="note" id="dialogNote"></p>
+  <ol class="steps" id="mailSteps" hidden>
+    <li>「PDFを保存する」を押し、印刷の画面の「送信先」を<b>「PDFに保存」</b>にして保存します</li>
+    <li>「Gmail で開く」などを押すと、文章が入ったメールの画面が開きます</li>
+    <li>保存した PDF をメールに付けて、送信します</li>
+  </ol>
+  <label>お客様のお名前（「様」は自動で入ります）<input id="inName" autocomplete="off"></label>
+  <label id="mailLabel" hidden>お客様のメールアドレス（空欄でも大丈夫です）<input id="inMail" type="email" autocomplete="off"></label>
+  <label>お部屋番号<input id="inRoom" autocomplete="off"></label>
+  <label>担当者名<input id="inStaff" autocomplete="off"></label>
+  <label>担当者の連絡先<input id="inContact" autocomplete="off"></label>
+  <label class="check"><input type="checkbox" id="inSave">このお客様の記録を残す（お名前が必要です）</label>
+  <p class="warn" id="saveMsg" hidden></p>
+  <div class="actions">
+    <button class="cancel" id="printCancel">やめる</button>
+    <button class="go" id="printGo">印刷する</button>
+  </div>
+</dialog>
+
+<dialog id="mailDialog">
+  <h2>PDF を保存できましたか？</h2>
+  <p class="note">使うメールに合わせて、どれか1つを押してください。開いたメールに、保存した PDF を付けて送信します。</p>
+  <div class="mail-ways">
+    <button class="go" id="mailGmail">Gmail で開く<small>Gmail の新しいメールの画面が、文章入りで開きます</small></button>
+    <button class="go" id="mailOpen">メールアプリで開く<small>タブレットやパソコンのメールアプリが開きます</small></button>
+    <button class="cancel" id="mailCopy">文章をコピー<small>開かないときは、コピーしてメールに貼り付けます</small></button>
+  </div>
+  <p class="copied" id="mailCopied" hidden></p>
+  <div class="mail-ways next">
+    <button class="cancel" id="mailToPrint">続けて紙にも印刷する<small>お名前などが入ったままの入力画面が開きます</small></button>
+  </div>
+  <div class="actions">
+    <button class="cancel" id="mailClose">終わる（入力した内容を消す）</button>
+  </div>
+</dialog>
+
+<dialog id="printDoneDialog">
+  <h2>印刷できましたか？</h2>
+  <p class="note">同じ内容をメールでも送るときは、「続けてメールでも送る」を押してください。</p>
+  <div class="mail-ways">
+    <button class="go" id="printToMail">続けてメールでも送る<small>お名前などが入ったままの入力画面が開きます</small></button>
+  </div>
+  <div class="actions">
+    <button class="cancel" id="printDone">終わる（入力した内容を消す）</button>
+  </div>
+</dialog>
+
+<dialog id="pinDialog">
+  <h2 id="pinTitle">暗証番号を入れてください</h2>
+  <p class="note" id="pinNote"></p>
+  <label>暗証番号（4けたの数字）<input id="pin1" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+  <label id="pin2Label">もう一度、同じ番号を入れてください<input id="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off"></label>
+  <p class="warn" id="pinMsg" hidden></p>
+  <div class="actions">
+    <button class="cancel" id="pinCancel">やめる</button>
+    <button class="go" id="pinGo">開く</button>
+  </div>
+  <p class="forgot" id="pinForgotRow"><button class="linkish" id="pinForgot">暗証番号を忘れたとき</button></p>
+  <div id="pinReset" hidden>
+    <p class="warn">お客様の記録をすべて消して、暗証番号を決め直します。消した記録は元に戻せません。</p>
+    <div class="actions">
+      <button class="cancel" id="pinResetNo">やめる</button>
+      <button class="danger" id="pinResetYes">すべて消す</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="recordsDialog" class="wide">
+  <div class="rec-head">
+    <h2>お客様の記録</h2>
+    <button id="recClose">閉じる</button>
+  </div>
+  <div id="recList">
+    <input id="recSearch" autocomplete="off" placeholder="お名前・お部屋番号で探す">
+    <div class="rec-items" id="recItems"></div>
+  </div>
+  <div class="rec-detail" id="recDetail" hidden></div>
+  <p class="copied" id="recMsg" hidden></p>
+  <div class="rec-foot" id="recFoot">
+    <button id="recExport">ファイルに書き出す</button>
+    <button id="recImport">ファイルから読み込む</button>
+    <input type="file" id="recFile" accept=".json,application/json" hidden>
+  </div>
+</dialog>
+
+<div id="sheets"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let floor = SETTINGS.floors[0];
+let door = SETTINGS.doors[0];
+
+// 床＋インテリアの画像がまだ無いときに出す「画像準備中」の絵
+function placeholderImage() {
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2165 1510">
+  <rect width="2165" height="1510" fill="#f1ede7"/>
+  <text x="1082" y="780" font-size="72" text-anchor="middle" fill="#a59d92"
+        font-family="Hiragino Sans, Meiryo, sans-serif">画像準備中</text>
+</svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+
+const materialText = (m) => `${m.name}（${m.code}）`;
+
+// タグを作る小さな道具
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// 床の画像とドアの画像を重ねたものを作る（画面と印刷で共通）
+function fillStack(stack) {
+  stack.innerHTML = "";
+  const room = el("img");
+  room.onerror = () => { room.onerror = null; room.src = placeholderImage(); };
+  room.src = floor.room;
+  room.alt = `床：${materialText(floor)}、ドア：${materialText(door)} のリビング`;
+  const front = el("img");
+  front.onerror = () => { front.hidden = true; };
+  front.src = door.image;
+  front.alt = "";
+  stack.append(room, front);
+}
+
+function show() {
+  fillStack($("stack"));
+  $("floorName").textContent = materialText(floor);
+  $("doorName").textContent = materialText(door);
+  document.querySelectorAll(".swatch").forEach((b) => {
+    const chosen = b.dataset.kind === "floor" ? floor : door;
+    b.setAttribute("aria-pressed", b.dataset.index === String(SETTINGS[b.dataset.kind + "s"].indexOf(chosen)) ? "true" : "false");
+  });
+}
+
+function makeSwatch(kind, m, i) {
+  const b = el("button", `swatch ${kind}`);
+  b.dataset.kind = kind;
+  b.dataset.index = i;
+  b.title = materialText(m);
+  const img = el("img");
+  img.src = m.photo;
+  img.alt = "";
+  // 品番が2つあるときは、写真の下では2行に分けて出す
+  b.append(img, el("span", "name", m.swatchName || m.name), el("span", "code", m.code.replace(" / ", "\n")));
+  b.addEventListener("click", () => {
+    if (kind === "floor") floor = m; else door = m;
+    show();
+  });
+  return b;
+}
+
+function setup() {
+  $("propertyName").textContent = SETTINGS.propertyName;
+  if (SETTINGS.companyLogo) {
+    $("screenLogo").src = SETTINGS.companyLogo;
+    $("screenLogo").hidden = false;
+  }
+  for (const [kind, label] of [["floor", "床（フローリング）"], ["door", "ドア（建具）"]]) {
+    const group = el("div", "group");
+    const row = el("div", "swatches");
+    SETTINGS[kind + "s"].forEach((m, i) => row.append(makeSwatch(kind, m, i)));
+    group.append(el("h2", "", label), row);
+    $("materials").append(group);
+  }
+  show();
+  fitNames();
+}
+
+// 品番が1行に収まらないときは文字を少しずつ小さくし、
+// それでも入らないときだけ空白のところで折り返す
+function fitNames() {
+  document.querySelectorAll(".swatch .code").forEach((n) => {
+    n.style.fontSize = "";
+    n.classList.remove("wrap");
+    let px = parseFloat(getComputedStyle(n).fontSize);
+    while (n.scrollWidth > n.clientWidth && px > 9) n.style.fontSize = `${--px}px`;
+    if (n.scrollWidth > n.clientWidth) n.classList.add("wrap");
+  });
+}
+window.addEventListener("resize", fitNames);
+
+// 印刷前の画面で入力した内容を集める
+function readInputs() {
+  const today = new Date();
+  return {
+    date: `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`,
+    name: $("inName").value.trim(),
+    room: $("inRoom").value.trim(),
+    staff: $("inStaff").value.trim(),
+    contact: $("inContact").value.trim(),
+    mail: $("inMail").value.trim()
+  };
+}
+
+// 下線つきの記入欄（空欄なら手書き用の線になる）
+function blank(text) {
+  return el("span", "value", text);
+}
+
+function materialTable() {
+  const table = el("table");
+  for (const [label, m] of [["フローリング", floor], ["建具（ドア）", door]]) {
+    const tr = el("tr");
+    const photo = el("td", "photo");
+    const img = el("img");
+    img.src = m.photo;
+    img.alt = "";
+    photo.append(img);
+    tr.append(el("th", "", label), photo, el("td", "", materialText(m)));
+    table.append(tr);
+  }
+  return table;
+}
+
+// 表示中の組み合わせを1枚に
+function buildSheet() {
+  const info = readInputs();
+  const sheet = el("section", "sheet");
+
+  const head = el("div", "sheet-head");
+  const left = el("div");
+  if (SETTINGS.companyLogo) {
+    const logo = el("img", "logo");
+    logo.src = SETTINGS.companyLogo;
+    left.append(logo);
+  }
+  left.append(el("div", "property", SETTINGS.propertyName));
+  head.append(left, el("div", "date", info.date));
+  const h1 = el("h1");
+  h1.append(el("span", "name", info.name), " 様邸　インテリアカラープラン");
+  const room = el("div", "room");
+  room.append("お部屋番号 ", blank(info.room));
+
+  const stack = el("div", "stack");
+  fillStack(stack);
+
+  const staff = el("div", "staff");
+  const s1 = el("div"); s1.append("担当 ", blank(info.staff));
+  const s2 = el("div"); s2.append("連絡先 ", blank(info.contact));
+  staff.append(s1, s2);
+  const caution = el("div", "caution");
+  for (const text of SETTINGS.cautions) caution.append(el("p", "", text));
+
+  sheet.append(head, h1, room, stack, materialTable(), staff, caution);
+  $("sheets").innerHTML = "";
+  $("sheets").append(sheet);
+}
+
+function clearInputs() {
+  for (const id of ["inName", "inRoom", "inStaff", "inContact", "inMail"]) $(id).value = "";
+  $("inSave").checked = false;
+  $("currentCustomer").hidden = true;
+}
+
+// 画像を読み込み終わってから印刷する
+function whenImagesReady(done) {
+  const imgs = [...document.querySelectorAll("#sheets img")];
+  Promise.all(imgs.map((img) => img.complete ? null :
+    new Promise((ok) => { img.addEventListener("load", ok); img.addEventListener("error", ok); })
+  )).then(done);
+}
+
+// 入力画面を「印刷」用と「メール」用で切り替える
+let mode = "print";
+function openDialog(m) {
+  mode = m;
+  const mail = m === "mail";
+  $("dialogTitle").textContent = mail ? "PDF にして、メールで送ります" : "この組み合わせを印刷します";
+  $("dialogNote").textContent = (mail
+    ? "空欄のままでも送れます（PDF には手書き用の線が入ります）。"
+    : "空欄のまま印刷すると、手書き用の線が入ります。")
+    + "入力した内容は、下のチェックを入れたときだけ記録に残ります。";
+  $("saveMsg").hidden = true;
+  $("mailSteps").hidden = !mail;
+  $("mailLabel").hidden = !mail;
+  $("printGo").textContent = mail ? "PDFを保存する" : "印刷する";
+  $("printDialog").showModal();
+}
+
+// メールの文章を作る（空欄の所は行ごと出さない）
+function mailText(info) {
+  const M = SETTINGS.mail;
+  const lines = [];
+  if (info.name) lines.push(`${info.name} 様`, "");
+  lines.push(...M.opening, "");
+  lines.push(`■ 床：${materialText(floor)}`, `■ ドア：${materialText(door)}`, "");
+  lines.push(...M.closing, "");
+  lines.push(...M.cautions);
+  if (info.staff || info.contact) lines.push("");
+  if (info.staff) lines.push(`担当：${info.staff}`);
+  if (info.contact) lines.push(`連絡先：${info.contact}`);
+  return lines.join("\r\n");
+}
+
+// PDF を保存するときのファイル名（ブラウザはページの題名をファイル名に使う）
+function pdfTitle(info) {
+  const parts = [SETTINGS.propertyName.replace(/[（）()]/g, "")];
+  if (info.name) parts.push(`${info.name}様`);
+  parts.push(`${floor.name}_${door.name}`);
+  return parts.join("_").replace(/[\\/:*?"<>|]/g, "");
+}
+
+let mailInfo = null;
+$("printOne").addEventListener("click", () => openDialog("print"));
+$("mailOne").addEventListener("click", () => openDialog("mail"));
+$("printCancel").addEventListener("click", () => $("printDialog").close());
+$("printGo").addEventListener("click", () => {
+  const info = readInputs();
+  // 「このお客様の記録を残す」にチェックがあるときは、先に記録する
+  if ($("inSave").checked) {
+    const problem = !info.name ? "記録を残すときは、お客様のお名前を入れてください。"
+      : !recordVisit(info) ? "このブラウザでは記録を残せませんでした。チェックを外すと、記録せずに続けられます。" : "";
+    if (problem) {
+      $("saveMsg").textContent = problem;
+      $("saveMsg").hidden = false;
+      return;
+    }
+  }
+  buildSheet();
+  $("printDialog").close();
+  whenImagesReady(() => {
+    if (mode === "mail") {
+      const title = document.title;
+      document.title = pdfTitle(info);
+      window.print();
+      document.title = title;
+      mailInfo = info;
+      $("mailDialog").showModal();
+    } else {
+      window.print();
+      $("printDoneDialog").showModal();
+    }
+  });
+});
+// メールアプリで開く（パソコンの設定によっては開かないことがある）
+$("mailOpen").addEventListener("click", () => {
+  const info = mailInfo;
+  location.href = `mailto:${encodeURIComponent(info.mail)}`
+    + `?subject=${encodeURIComponent(SETTINGS.mail.subject)}`
+    + `&body=${encodeURIComponent(mailText(info))}`;
+});
+// Gmail の新しいメールの画面を、別のタブで開く（インターネットが必要）
+$("mailGmail").addEventListener("click", () => {
+  const info = mailInfo;
+  const url = "https://mail.google.com/mail/?view=cm&fs=1"
+    + `&to=${encodeURIComponent(info.mail)}`
+    + `&su=${encodeURIComponent(SETTINGS.mail.subject)}`
+    + `&body=${encodeURIComponent(mailText(info))}`;
+  window.open(url, "_blank");
+});
+// 本文をコピーする（どのメールでも、貼り付ければ使える）
+$("mailCopy").addEventListener("click", async () => {
+  const text = mailText(mailInfo);
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    $("mailDialog").append(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+  $("mailCopied").textContent = `本文をコピーしました。メールの本文に貼り付けてください。件名は「${SETTINGS.mail.subject}」です。`;
+  $("mailCopied").hidden = false;
+});
+// 「続けて〜」のときは入力した内容を残したまま、次の入力画面を開く
+function continueTo(dialog, nextMode) {
+  $(dialog).close();
+  $("mailCopied").hidden = true;
+  openDialog(nextMode);
+}
+// 「終わる」や Esc キーで閉じたときは、入力した内容（メールアドレスなど）を消す
+function finish(dialog) {
+  $(dialog).close();
+  $("mailCopied").hidden = true;
+  mailInfo = null;
+  clearInputs();
+}
+$("mailToPrint").addEventListener("click", () => continueTo("mailDialog", "print"));
+$("printToMail").addEventListener("click", () => continueTo("printDoneDialog", "mail"));
+$("mailClose").addEventListener("click", () => finish("mailDialog"));
+$("printDone").addEventListener("click", () => finish("printDoneDialog"));
+for (const id of ["mailDialog", "printDoneDialog"]) {
+  $(id).addEventListener("cancel", (e) => { e.preventDefault(); finish(id); });
+}
+
+
+/* ===== お客様の記録（このタブレット・このブラウザの中だけに残る） ===== */
+const STORE_KEY = "floorDoorColorSelect.records";
+function loadStore() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE_KEY));
+    if (s && Array.isArray(s.customers)) return s;
+  } catch (e) { /* 読めないときは空として扱う */ }
+  return { pin: "", customers: [] };
+}
+function saveStore(s) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(s)); return true; }
+  catch (e) { return false; }
+}
+// 暗証番号は、そのままではなく変換した形で残す（本格的な鍵ではなく、目隠し程度）
+function pinHash(pin) {
+  let h = 2166136261;
+  for (const c of "floor-door:" + pin) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return h.toString(16);
+}
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function jpDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${y}年${m}月${d}日`;
+}
+const findByCode = (list, code) => list.find((m) => m.code === code);
+const sameCustomer = (c, name, room) => c.name === name && (c.room || "") === (room || "");
+const lastVisit = (c) => c.visits.reduce((a, v) => (v.date > a ? v.date : a), "");
+
+// 今の組み合わせを、お客様の来場の記録として残す（同じお名前・お部屋番号なら同じお客様）
+function recordVisit(info) {
+  const s = loadStore();
+  let c = s.customers.find((x) => sameCustomer(x, info.name, info.room));
+  if (!c) {
+    c = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: info.name, room: info.room, memo: "", visits: [] };
+    s.customers.push(c);
+  }
+  for (const k of ["mail", "staff", "contact"]) if (info[k]) c[k] = info[k];
+  const v = { date: todayISO(), floor: floor.code, door: door.code };
+  // 同じ日に同じ組み合わせを印刷とメールの両方でしても、記録は1つにする
+  if (!c.visits.some((x) => x.date === v.date && x.floor === v.floor && x.door === v.door)) c.visits.push(v);
+  return saveStore(s);
+}
+
+// ---- 暗証番号 ----
+let pinFirst = false;
+function openPin() {
+  pinFirst = !loadStore().pin;
+  $("pinTitle").textContent = pinFirst ? "暗証番号を決めてください" : "暗証番号を入れてください";
+  $("pinNote").textContent = pinFirst
+    ? "お客様の記録を開くときに使う、4けたの数字を決めます。忘れないようにしてください。"
+    : "お客様の記録を見るには、暗証番号が必要です。";
+  $("pin2Label").hidden = !pinFirst;
+  $("pinForgotRow").hidden = pinFirst;
+  $("pinReset").hidden = true;
+  $("pinMsg").hidden = true;
+  $("pin1").value = $("pin2").value = "";
+  $("pinGo").textContent = pinFirst ? "決める" : "開く";
+  $("pinDialog").showModal();
+}
+function pinError(text) {
+  $("pinMsg").textContent = text;
+  $("pinMsg").hidden = false;
+}
+function pinSubmit() {
+  const p1 = $("pin1").value.trim();
+  const s = loadStore();
+  if (!/^\d{4}$/.test(p1)) return pinError("4けたの数字を入れてください。");
+  if (pinFirst) {
+    if (p1 !== $("pin2").value.trim()) return pinError("2回の番号がちがいます。もう一度入れてください。");
+    s.pin = pinHash(p1);
+    if (!saveStore(s)) return pinError("このブラウザでは記録を残せません。");
+  } else if (pinHash(p1) !== s.pin) {
+    $("pin1").value = "";
+    return pinError("暗証番号がちがいます。");
+  }
+  $("pinDialog").close();
+  openRecords();
+}
+$("recordsOpen").addEventListener("click", openPin);
+$("pinGo").addEventListener("click", pinSubmit);
+for (const id of ["pin1", "pin2"]) {
+  $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") pinSubmit(); });
+}
+$("pinCancel").addEventListener("click", () => $("pinDialog").close());
+$("pinForgot").addEventListener("click", () => { $("pinReset").hidden = false; });
+$("pinResetNo").addEventListener("click", () => { $("pinReset").hidden = true; });
+$("pinResetYes").addEventListener("click", () => {
+  try { localStorage.removeItem(STORE_KEY); } catch (e) { /* 何もしない */ }
+  openPin();
+});
+
+// ---- 一覧と、お客様ごとの記録 ----
+function recMessage(text) {
+  $("recMsg").textContent = text;
+  $("recMsg").hidden = !text;
+}
+function openRecords() {
+  $("recSearch").value = "";
+  recMessage("");
+  showList();
+  $("recordsDialog").showModal();
+}
+function showList() {
+  $("recDetail").hidden = true;
+  $("recList").hidden = false;
+  $("recFoot").hidden = false;
+  const q = $("recSearch").value.trim();
+  const list = loadStore().customers
+    .filter((c) => !q || c.name.includes(q) || (c.room || "").includes(q))
+    .sort((a, b) => lastVisit(b).localeCompare(lastVisit(a)));
+  const box = $("recItems");
+  box.innerHTML = "";
+  if (!list.length) {
+    box.append(el("p", "rec-empty", q ? "見つかりませんでした。"
+      : "まだ記録がありません。印刷やメールの入力画面で「このお客様の記録を残す」にチェックを入れると、ここに記録されます。"));
+    return;
+  }
+  for (const c of list) {
+    const b = el("button", "rec-item");
+    const left = el("div");
+    left.append(el("b", "", `${c.name} 様`), " ", el("span", "", c.room ? `お部屋 ${c.room}` : ""));
+    const last = lastVisit(c);
+    b.append(left, el("span", "", `最後の来場 ${last ? jpDate(last) : "－"}（${c.visits.length}回）`));
+    b.addEventListener("click", () => showDetail(c.id));
+    box.append(b);
+  }
+}
+$("recSearch").addEventListener("input", showList);
+
+function showDetail(id) {
+  const s = loadStore();
+  const c = s.customers.find((x) => x.id === id);
+  if (!c) return showList();
+  recMessage("");
+  $("recList").hidden = true;
+  $("recFoot").hidden = true;
+  const d = $("recDetail");
+  d.hidden = false;
+  d.innerHTML = "";
+
+  const back = el("button", "small", "← 一覧に戻る");
+  back.addEventListener("click", showList);
+  d.append(back, el("h3", "", `${c.name} 様`));
+
+  const dl = el("dl");
+  for (const [label, value] of [["お部屋番号", c.room], ["メール", c.mail], ["担当", c.staff], ["連絡先", c.contact]]) {
+    if (value) dl.append(el("dt", "", label), el("dd", "", value));
+  }
+  d.append(dl);
+
+  d.append(el("h4", "", "メモ"));
+  const memo = el("textarea");
+  memo.value = c.memo || "";
+  memo.placeholder = "例：ご主人は明るめの床をご希望";
+  const saveMemo = el("button", "small", "メモを保存");
+  saveMemo.addEventListener("click", () => {
+    const s2 = loadStore();
+    const c2 = s2.customers.find((x) => x.id === id);
+    if (!c2) return;
+    c2.memo = memo.value;
+    recMessage(saveStore(s2) ? "メモを保存しました。" : "保存できませんでした。");
+  });
+  d.append(memo, saveMemo);
+
+  d.append(el("h4", "", "見た組み合わせ（新しい順）"));
+  // 新しい順（同じ日なら、あとから記録したものが上）
+  const visits = [...c.visits].reverse().sort((a, b) => b.date.localeCompare(a.date));
+  for (const v of visits) {
+    const f = findByCode(SETTINGS.floors, v.floor);
+    const dr = findByCode(SETTINGS.doors, v.door);
+    const row = el("div", "visit");
+    const fi = el("img"); fi.alt = ""; if (f) fi.src = f.photo;
+    const di = el("img", "door"); di.alt = ""; if (dr) di.src = dr.photo;
+    const what = el("div", "what");
+    what.append(el("b", "", jpDate(v.date)),
+      `床：${f ? materialText(f) : "（今は使っていない床）"}`, el("br"),
+      `ドア：${dr ? materialText(dr) : "（今は使っていないドア）"}`);
+    const go = el("button", "", "この組み合わせを表示");
+    go.disabled = !f || !dr;
+    go.addEventListener("click", () => showVisit(c, f, dr));
+    row.append(fi, di, what, go);
+    d.append(row);
+  }
+
+  const del = el("div", "rec-delete");
+  const delBtn = el("button", "small", "このお客様の記録を消す");
+  delBtn.addEventListener("click", () => {
+    del.innerHTML = "";
+    const yes = el("button", "small", "消す");
+    yes.style.color = "#9b2222";
+    const no = el("button", "small", "やめる");
+    no.style.marginLeft = "10px";
+    yes.addEventListener("click", () => {
+      const s2 = loadStore();
+      s2.customers = s2.customers.filter((x) => x.id !== id);
+      saveStore(s2);
+      showList();
+      recMessage(`${c.name} 様の記録を消しました。`);
+    });
+    no.addEventListener("click", () => showDetail(id));
+    del.append(el("p", "", `${c.name} 様の記録を消します。元に戻せません。`), yes, no);
+  });
+  del.append(delBtn);
+  d.append(del);
+}
+
+// 記録の組み合わせを画面に出し、お名前なども入力済みにする
+function showVisit(c, f, dr) {
+  floor = f;
+  door = dr;
+  show();
+  $("inName").value = c.name || "";
+  $("inRoom").value = c.room || "";
+  $("inMail").value = c.mail || "";
+  $("inStaff").value = c.staff || "";
+  $("inContact").value = c.contact || "";
+  $("inSave").checked = true;
+  $("currentName").textContent = `${c.name} 様の記録から表示しています`;
+  $("currentCustomer").hidden = false;
+  $("recordsDialog").close();
+}
+$("currentClear").addEventListener("click", clearInputs);
+$("recClose").addEventListener("click", () => $("recordsDialog").close());
+
+// ---- ファイルへの書き出し・読み込み（バックアップや機器の入れ替え用。暗証番号は含めない） ----
+$("recExport").addEventListener("click", () => {
+  const data = { app: "床・ドア/カラーセレクト", exported: todayISO(), customers: loadStore().customers };
+  const a = el("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  a.download = `お客様の記録_${todayISO()}.json`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  recMessage("ファイルに書き出しました。お客様の情報が入っているので、取り扱いに気をつけてください。");
+});
+$("recImport").addEventListener("click", () => $("recFile").click());
+$("recFile").addEventListener("change", async () => {
+  const file = $("recFile").files[0];
+  $("recFile").value = "";
+  if (!file) return;
+  let incoming;
+  try {
+    incoming = JSON.parse(await file.text()).customers;
+    if (!Array.isArray(incoming)) throw new Error();
+  } catch (e) {
+    return recMessage("このファイルは読み込めませんでした。");
+  }
+  // 今の記録に足す（同じお客様は、来場の記録をまとめる）
+  const s = loadStore();
+  let added = 0;
+  for (const n of incoming) {
+    if (!n || !n.name || !Array.isArray(n.visits)) continue;
+    let c = s.customers.find((x) => sameCustomer(x, n.name, n.room));
+    if (!c) {
+      s.customers.push({ ...n, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) });
+      added++;
+      continue;
+    }
+    for (const v of n.visits) {
+      if (!c.visits.some((x) => x.date === v.date && x.floor === v.floor && x.door === v.door)) c.visits.push(v);
+    }
+    for (const k of ["mail", "staff", "contact", "memo"]) if (!c[k] && n[k]) c[k] = n[k];
+  }
+  saveStore(s);
+  showList();
+  recMessage(`読み込みました（新しいお客様 ${added} 件）。`);
+});
+
+setup();
+</script>
+</body>
+</html>

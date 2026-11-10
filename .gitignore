@@ -1,0 +1,8 @@
+.DS_Store
+images/
+*.jpg
+*.jpeg
+*.png
+*.psd
+*.zip
+.env*
