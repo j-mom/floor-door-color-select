@@ -5,7 +5,7 @@
   "customers": [
     {
       "id": "sample1",
-      "name": "沖縄 太郎",
+      "name": "東京 太郎",
       "room": "805",
       "mail": "taro@example.com",
       "staff": "山田",
@@ -20,7 +20,7 @@
     },
     {
       "id": "sample2",
-      "name": "那覇 花子",
+      "name": "大阪 花子",
       "room": "302",
       "mail": "hanako@example.com",
       "staff": "山田",
@@ -33,7 +33,7 @@
     },
     {
       "id": "sample3",
-      "name": "首里 一郎",
+      "name": "北海道 一郎",
       "room": "1101",
       "staff": "比嘉",
       "contact": "098-000-0001",
