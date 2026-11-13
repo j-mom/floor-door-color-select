@@ -229,7 +229,14 @@
     font: inherit; font-size: 16px; padding: 8px 16px; border-radius: 10px; cursor: pointer;
     border: 2px solid var(--line); background: #fff; color: var(--ink);
   }
-  .rec-items { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .rec-search { display: flex; gap: 10px; align-items: stretch; }
+  .rec-search input { flex: 1; min-width: 0; }
+  .rec-search button {
+    font: inherit; font-size: 17px; padding: 8px 18px; border-radius: 10px; cursor: pointer; white-space: nowrap;
+    border: 2px solid #3b5382; background: #fff; color: #3b5382; font-weight: 700;
+  }
+  .rec-count { margin: 10px 0 0; color: var(--sub); font-size: 15px; }
+  .rec-items { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .rec-item {
     font: inherit; text-align: left; padding: 12px 14px; border-radius: 10px; cursor: pointer;
     border: 1px solid var(--line); background: #fff; color: var(--ink);
@@ -248,8 +255,19 @@
   .visit img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #eee; }
   .visit img.door { object-fit: contain; background: #fff; }
   .visit .what { font-size: 15px; line-height: 1.5; }
-  .visit .what b { display: block; font-size: 16px; }
+  .visit-day { margin: 14px 0 0; padding: 6px 12px; border-radius: 8px; background: #f3f0ea; font-size: 16px; }
+  .visit-day b { color: #3b5382; font-size: 17px; }
+  .visit-day + .visit { border-top: none; }
+  .visit-none { margin: 0; padding: 10px 12px; color: var(--sub); font-size: 15px; }
+  .rec-detail .today { margin-bottom: 4px; border-color: #3b5382; color: #3b5382; font-weight: 700; }
+  .rec-detail .today:disabled { border-color: var(--line); color: var(--sub); font-weight: 400; cursor: default; }
   .visit button { font: inherit; font-size: 16px; padding: 10px 14px; border-radius: 10px; cursor: pointer; border: 2px solid #3b5382; background: #3b5382; color: #fff; }
+  .rec-edit { margin-top: 8px; padding: 16px; border-radius: 10px; background: #f3f0ea; }
+  .rec-edit label { margin-bottom: 10px; }
+  .rec-edit input { font-size: 18px; background: #fff; }
+  .rec-edit .warn { margin: 4px 0 10px; }
+  .rec-edit .btns { display: flex; gap: 10px; margin-top: 4px; }
+  .rec-edit .save { border-color: #3b5382; background: #3b5382; color: #fff; }
   .rec-delete { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
   .rec-delete .small { color: #9b2222; border-color: #e6c4c4; }
   .rec-foot { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -475,7 +493,11 @@ const SETTINGS = {
     <button id="recClose">閉じる</button>
   </div>
   <div id="recList">
-    <input id="recSearch" autocomplete="off" placeholder="お名前・お部屋番号で探す">
+    <div class="rec-search">
+      <input id="recSearch" autocomplete="off" placeholder="お名前・フリガナ・お部屋番号で探す">
+      <button id="recShowAll">すべて表示</button>
+    </div>
+    <p class="rec-count" id="recCount"></p>
     <div class="rec-items" id="recItems"></div>
   </div>
   <div class="rec-detail" id="recDetail" hidden></div>
@@ -483,6 +505,7 @@ const SETTINGS = {
   <div class="rec-foot" id="recFoot">
     <button id="recExport">ファイルに書き出す</button>
     <button id="recImport">ファイルから読み込む</button>
+    <button id="recCsv">スプレッドシート用に書き出す（CSV）</button>
     <input type="file" id="recFile" accept=".json,application/json" hidden>
   </div>
 </dialog>
@@ -822,6 +845,8 @@ function jpDate(iso) {
 }
 const findByCode = (list, code) => list.find((m) => m.code === code);
 const sameCustomer = (c, name, room) => c.name === name && (c.room || "") === (room || "");
+// 来場した日（同じ日は1回と数える）。古い順
+const visitDays = (c) => [...new Set(c.visits.map((v) => v.date))].sort();
 const lastVisit = (c) => c.visits.reduce((a, v) => (v.date > a ? v.date : a), "");
 
 // 今の組み合わせを、お客様の来場の記録として残す（同じお名前・お部屋番号なら同じお客様）
@@ -836,6 +861,8 @@ function recordVisit(info) {
   const v = { date: todayISO(), floor: floor.code, door: door.code };
   // 同じ日に同じ組み合わせを印刷とメールの両方でしても、記録は1つにする
   if (!c.visits.some((x) => x.date === v.date && x.floor === v.floor && x.door === v.door)) c.visits.push(v);
+  // 「今日の来場を記録」で残した、組み合わせのない記録は、組み合わせが残ったら要らないので消す
+  c.visits = c.visits.filter((x) => x.date !== v.date || x.floor);
   return saveStore(s);
 }
 
@@ -854,6 +881,7 @@ function openPin() {
   $("pin1").value = $("pin2").value = "";
   $("pinGo").textContent = pinFirst ? "決める" : "開く";
   $("pinDialog").showModal();
+  $("pin1").focus();
 }
 function pinError(text) {
   $("pinMsg").textContent = text;
@@ -877,7 +905,14 @@ function pinSubmit() {
 $("recordsOpen").addEventListener("click", openPin);
 $("pinGo").addEventListener("click", pinSubmit);
 for (const id of ["pin1", "pin2"]) {
-  $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") pinSubmit(); });
+  // Enter で開く。preventDefault がないと、同じ Enter が次に開く記録の画面の「閉じる」まで押してしまう
+  $(id).addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    // 初めて決めるときは、1つ目の欄で Enter を押したら2つ目の欄へ進む
+    if (id === "pin1" && pinFirst && !$("pin2").value) return $("pin2").focus();
+    pinSubmit();
+  });
 }
 $("pinCancel").addEventListener("click", () => $("pinDialog").close());
 $("pinForgot").addEventListener("click", () => { $("pinReset").hidden = false; });
@@ -899,17 +934,21 @@ function openRecords() {
   $("recordsDialog").showModal();
 }
 // 探すときは、スペースの有無と全角・半角の違いを気にしない形にそろえて比べる
-const searchKey = (text) => (text || "").normalize("NFKC").replace(/\s/g, "").toLowerCase();
+// カタカナはひらがなにそろえる（「トウキョウ」でも「とうきょう」でも見つかる）
+const searchKey = (text) => (text || "").normalize("NFKC").replace(/\s/g, "").toLowerCase()
+  .replace(/[\u30a1-\u30f6]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 function showList() {
   $("recDetail").hidden = true;
   $("recList").hidden = false;
   $("recFoot").hidden = false;
   const q = searchKey($("recSearch").value);
-  const list = loadStore().customers
-    .filter((c) => !q || searchKey(c.name).includes(q) || searchKey(c.room).includes(q))
+  const all = loadStore().customers;
+  const list = all
+    .filter((c) => !q || searchKey(c.name).includes(q) || searchKey(c.kana).includes(q) || searchKey(c.room).includes(q))
     .sort((a, b) => lastVisit(b).localeCompare(lastVisit(a)));
   const box = $("recItems");
   box.innerHTML = "";
+  $("recCount").textContent = !all.length ? "" : q ? `全${all.length}件中 ${list.length}件` : `全${all.length}件（新しい来場の順）`;
   if (!list.length) {
     box.append(el("p", "rec-empty", q ? "見つかりませんでした。"
       : "まだ記録がありません。印刷やメールの入力画面で「このお客様の記録を残す」にチェックを入れると、ここに記録されます。"));
@@ -920,12 +959,16 @@ function showList() {
     const left = el("div");
     left.append(el("b", "", `${c.name} 様`), " ", el("span", "", c.room ? `お部屋 ${c.room}` : ""));
     const last = lastVisit(c);
-    b.append(left, el("span", "", `最後の来場 ${last ? jpDate(last) : "－"}（${c.visits.length}回）`));
+    b.append(left, el("span", "", last ? `最後の来場 ${jpDate(last)}（${visitDays(c).length}回目）` : "最後の来場 －"));
     b.addEventListener("click", () => showDetail(c.id));
     box.append(b);
   }
 }
 $("recSearch").addEventListener("input", showList);
+$("recShowAll").addEventListener("click", () => {
+  $("recSearch").value = "";
+  showList();
+});
 
 function showDetail(id) {
   const s = loadStore();
@@ -943,15 +986,23 @@ function showDetail(id) {
   d.append(back, el("h3", "", `${c.name} 様`));
 
   const dl = el("dl");
-  for (const [label, value] of [["お部屋番号", c.room], ["メール", c.mail], ["担当", c.staff], ["連絡先", c.contact]]) {
+  for (const [label, value] of [["フリガナ", c.kana], ["お部屋番号", c.room], ["お客様の連絡先", c.phone], ["メール", c.mail], ["担当", c.staff], ["担当者の連絡先", c.contact]]) {
     if (value) dl.append(el("dt", "", label), el("dd", "", value));
   }
-  d.append(dl);
+  const editBtn = el("button", "small", "お客様の情報を修正");
+  editBtn.style.marginTop = "10px";
+  editBtn.addEventListener("click", () => {
+    const form = editForm(c);
+    dl.replaceWith(form);
+    editBtn.remove();
+    form.querySelector("input").focus();
+  });
+  d.append(dl, editBtn);
 
   d.append(el("h4", "", "メモ"));
   const memo = el("textarea");
   memo.value = c.memo || "";
-  memo.placeholder = "例：ご主人は明るめの床をご希望";
+  memo.placeholder = "例：明るめの床をご希望";
   const saveMemo = el("button", "small", "メモを保存");
   saveMemo.addEventListener("click", () => {
     const s2 = loadStore();
@@ -962,18 +1013,43 @@ function showDetail(id) {
   });
   d.append(memo, saveMemo);
 
-  d.append(el("h4", "", "見た組み合わせ（新しい順）"));
-  // 新しい順（同じ日なら、あとから記録したものが上）
+  d.append(el("h4", "", "見た組み合わせ（新しい来場の順）"));
+  // 印刷やメールをしなかった日でも、来場したことを残せるボタン（組み合わせなしの記録になる）
+  const today = todayISO();
+  const doneToday = c.visits.some((v) => v.date === today);
+  const todayBtn = el("button", "small today", doneToday ? "今日の来場は記録済みです" : "今日の来場を記録");
+  todayBtn.disabled = doneToday;
+  todayBtn.addEventListener("click", () => {
+    const s2 = loadStore();
+    const c2 = s2.customers.find((x) => x.id === id);
+    if (!c2) return showList();
+    if (!c2.visits.some((v) => v.date === today)) c2.visits.push({ date: today, floor: "", door: "" });
+    if (!saveStore(s2)) return recMessage("保存できませんでした。");
+    showDetail(id);
+  });
+  d.append(todayBtn);
+  // 新しい順（同じ日なら、あとから記録したものが上）。来場日ごとに「○回目の来場」の見出しを付ける
+  const days = visitDays(c);
   const visits = [...c.visits].reverse().sort((a, b) => b.date.localeCompare(a.date));
+  let shownDay = "";
   for (const v of visits) {
+    if (v.date !== shownDay) {
+      shownDay = v.date;
+      const head = el("p", "visit-day");
+      head.append(el("b", "", `${days.indexOf(v.date) + 1}回目の来場`), `　${jpDate(v.date)}`);
+      d.append(head);
+    }
+    if (!v.floor) {
+      d.append(el("p", "visit-none", "組み合わせの記録はありません（来場のみ）"));
+      continue;
+    }
     const f = findByCode(SETTINGS.floors, v.floor);
     const dr = findByCode(SETTINGS.doors, v.door);
     const row = el("div", "visit");
     const fi = el("img"); fi.alt = ""; if (f) fi.src = f.photo;
     const di = el("img", "door"); di.alt = ""; if (dr) di.src = dr.photo;
     const what = el("div", "what");
-    what.append(el("b", "", jpDate(v.date)),
-      `床：${f ? materialText(f) : "（今は使っていない床）"}`, el("br"),
+    what.append(`床：${f ? materialText(f) : "（今は使っていない床）"}`, el("br"),
       `ドア：${dr ? materialText(dr) : "（今は使っていないドア）"}`);
     const go = el("button", "", "この組み合わせを表示");
     go.disabled = !f || !dr;
@@ -1002,6 +1078,81 @@ function showDetail(id) {
   });
   del.append(delBtn);
   d.append(del);
+}
+
+// お名前・お部屋番号・メール・担当・連絡先を直す欄
+const EDIT_FIELDS = [
+  ["name", "お名前（「様」は自動で入ります）"],
+  ["kana", "フリガナ"],
+  ["room", "お部屋番号"],
+  ["phone", "お客様の連絡先（電話番号など）"],
+  ["mail", "メールアドレス"],
+  ["staff", "担当者名"],
+  ["contact", "担当者の連絡先"],
+];
+function editForm(c) {
+  const form = el("div", "rec-edit");
+  const inputs = {};
+  for (const [key, label] of EDIT_FIELDS) {
+    const lab = el("label", "", label);
+    const inp = el("input");
+    inp.autocomplete = "off";
+    if (key === "mail") inp.type = "email";
+    if (key === "phone") inp.type = "tel";
+    inp.value = c[key] || "";
+    inputs[key] = inp;
+    lab.append(inp);
+    form.append(lab);
+  }
+  const warn = el("p", "warn");
+  warn.hidden = true;
+  const save = el("button", "small save", "保存する");
+  const cancel = el("button", "small", "やめる");
+  cancel.addEventListener("click", () => showDetail(c.id));
+  save.addEventListener("click", () => {
+    const v = {};
+    for (const [key] of EDIT_FIELDS) v[key] = inputs[key].value.trim();
+    if (!v.name) {
+      warn.textContent = "お名前を入れてください。";
+      warn.hidden = false;
+      return inputs.name.focus();
+    }
+    const s2 = loadStore();
+    const c2 = s2.customers.find((x) => x.id === c.id);
+    if (!c2) return showList();
+    if (s2.customers.some((x) => x.id !== c.id && sameCustomer(x, v.name, v.room))) {
+      warn.textContent = `「${v.name} 様${v.room ? `（お部屋 ${v.room}）` : ""}」は、すでに別の記録があります。お名前かお部屋番号を変えてください。`;
+      warn.hidden = false;
+      return;
+    }
+    const oldName = c2.name, oldRoom = c2.room;
+    Object.assign(c2, v);
+    if (!saveStore(s2)) {
+      warn.textContent = "保存できませんでした。";
+      warn.hidden = false;
+      return;
+    }
+    // このお客様を画面に呼び出している途中なら、入力済みの内容も新しくする
+    if (!$("currentCustomer").hidden && sameCustomer({ name: $("inName").value.trim(), room: $("inRoom").value.trim() }, oldName, oldRoom)) {
+      $("inName").value = c2.name;
+      $("inRoom").value = c2.room;
+      $("inMail").value = c2.mail;
+      $("inStaff").value = c2.staff;
+      $("inContact").value = c2.contact;
+      $("currentName").textContent = `${c2.name} 様の記録から表示しています`;
+    }
+    showDetail(c.id);
+    recMessage("お客様の情報を修正しました。");
+  });
+  for (const inp of Object.values(inputs)) inp.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    save.click();
+  });
+  const btns = el("div", "btns");
+  btns.append(save, cancel);
+  form.append(warn, btns);
+  return form;
 }
 
 // 記録の組み合わせを画面に出し、お名前なども入力済みにする
@@ -1033,6 +1184,41 @@ $("recExport").addEventListener("click", () => {
   a.remove();
   recMessage("ファイルに書き出しました。お客様の情報が入っているので、取り扱いに気をつけてください。");
 });
+// ---- スプレッドシート用（CSV）の書き出し。1行＝お客様1人。見る専用で、アプリには読み込めない ----
+function csvCell(value) {
+  let t = String(value ?? "");
+  // 「=」などで始まる文字は、表計算ソフトが計算式と取りちがえないように「'」を付ける
+  if (/^[=+@\t\r]/.test(t)) t = "'" + t;
+  return `"${t.replace(/"/g, '""')}"`;
+}
+const slashDate = (iso) => (iso ? iso.replace(/-/g, "/") : "");
+$("recCsv").addEventListener("click", () => {
+  const customers = loadStore().customers;
+  if (!customers.length) return recMessage("まだ記録がないので、書き出すものがありません。");
+  const rows = [["お名前", "フリガナ", "お部屋番号", "お客様の連絡先", "メール", "担当", "担当者の連絡先", "来場回数", "初回の来場日", "最後の来場日",
+    "最後に見た床", "最後に見たドア", "メモ"]];
+  const list = [...customers].sort((a, b) => lastVisit(b).localeCompare(lastVisit(a)));
+  for (const c of list) {
+    const days = visitDays(c);
+    // 組み合わせのある記録のうち、いちばん新しいもの（同じ日なら、あとから記録したもの）
+    const combos = c.visits.filter((v) => v.floor);
+    const lastCombo = combos.reduce((a, v) => (!a || v.date >= a.date ? v : a), null);
+    const f = lastCombo && findByCode(SETTINGS.floors, lastCombo.floor);
+    const dr = lastCombo && findByCode(SETTINGS.doors, lastCombo.door);
+    rows.push([c.name, c.kana, c.room, c.phone, c.mail, c.staff, c.contact, days.length, slashDate(days[0]), slashDate(days[days.length - 1]),
+      lastCombo ? (f ? materialText(f) : lastCombo.floor) : "", lastCombo ? (dr ? materialText(dr) : lastCombo.door) : "", c.memo]);
+  }
+  // 先頭の \ufeff は、Excel で開いても日本語が文字化けしないための印
+  const csv = "\ufeff" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+  const a = el("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = `お客様一覧_${todayISO()}.csv`;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  recMessage("スプレッドシート用のファイルを書き出しました。お客様の情報が入っているので、取り扱いに気をつけてください。");
+});
+
 $("recImport").addEventListener("click", () => $("recFile").click());
 $("recFile").addEventListener("change", async () => {
   const file = $("recFile").files[0];
@@ -1059,7 +1245,7 @@ $("recFile").addEventListener("change", async () => {
     for (const v of n.visits) {
       if (!c.visits.some((x) => x.date === v.date && x.floor === v.floor && x.door === v.door)) c.visits.push(v);
     }
-    for (const k of ["mail", "staff", "contact", "memo"]) if (!c[k] && n[k]) c[k] = n[k];
+    for (const k of ["kana", "phone", "mail", "staff", "contact", "memo"]) if (!c[k] && n[k]) c[k] = n[k];
   }
   saveStore(s);
   showList();
